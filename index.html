@@ -12,9 +12,11 @@
       padding: 20px;
       text-align: center;
     }
+
     #chat-box {
       display: none;
     }
+
     button {
       padding: 15px 30px;
       font-size: 18px;
@@ -24,9 +26,11 @@
       color: white;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #45a049;
     }
+
     #status {
       margin-top: 20px;
       font-size: 16px;
@@ -38,38 +42,46 @@
   <p>Press the mic and speak. The AI will correct you only if your English is incorrect.</p>
   <button id="speakBtn">🎤 Speak</button>
   <div id="status"></div>
-<script>
-const button = document.getElementById('speak-button');
-const statusDiv = document.getElementById('status');
 
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.lang = 'en-US';
-recognition.interimResults = false;
-recognition.maxAlternatives = 1;
+  <script>
+    const speakBtn = document.getElementById('speakBtn');
 
-button.onclick = () => {
-  statusDiv.textContent = 'Listening...';
-  recognition.start();
-};
+    function startListening() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
 
-recognition.onresult = async (event) => {
-  const userSpeech = event.results[0][0].transcript;
-  statusDiv.textContent = 'Thinking...';
+      recognition.onstart = () => {
+        speakBtn.innerText = "🎙️ Listening...";
+      };
 
-  try {
-    const response = await fetch('/api/gpt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userSpeech })
-    });
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("You said:", transcript);
+        speakBtn.innerText = "✅ Received";
 
-    const data = await response.json();
-    statusDiv.textContent = data.reply || 'No response from AI.';
-  } catch (error) {
-    statusDiv.textContent = 'Error talking to AI.';
-    console.error(error);
-  }
-};
-</script>
+        // TODO: send transcript to GPT
+        // fetch('/api/gpt', { method: 'POST', body: JSON.stringify({ text: transcript }) })
+        //   .then(res => res.json())
+        //   .then(data => console.log("AI response:", data));
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        speakBtn.innerText = "❌ Try Again";
+      };
+
+      recognition.onend = () => {
+        setTimeout(() => {
+          speakBtn.innerText = "🎤 Speak";
+        }, 1000);
+      };
+
+      recognition.start();
+    }
+
+    speakBtn.onclick = startListening;
+  </script>
 </body>
 </html>
