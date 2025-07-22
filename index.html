@@ -37,55 +37,38 @@
   <p>Press the mic and speak. The AI will correct you only if your English is incorrect.</p>
   <button onclick="startListening()">🎤 Speak</button>
   <div id="status"></div>
+<script>
+const button = document.getElementById('speak-button');
+const statusDiv = document.getElementById('status');
 
-  <script>
-    async function processSpeech(text) {
-      document.getElementById('status').innerText = "Thinking...";
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = 'en-US';
+recognition.interimResults = false;
+recognition.maxAlternatives = 1;
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + process.env.OPENAI_API_KEY
-        },
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: [
-            { role: "system", content: "You are a polite spoken English tutor helping hotel industry students. Only correct the student's sentence if it's incorrect. If it's fine, praise them and repeat their sentence." },
-            { role: "user", content: text }
-          ]
-        })
-      });
+button.onclick = () => {
+  statusDiv.textContent = 'Listening...';
+  recognition.start();
+};
 
-      const data = await response.json();
-      const reply = data.choices[0].message.content;
+recognition.onresult = async (event) => {
+  const userSpeech = event.results[0][0].transcript;
+  statusDiv.textContent = 'Thinking...';
 
-      document.getElementById('status').innerText = reply;
+  try {
+    const response = await fetch('/api/gpt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userSpeech })
+    });
 
-      const synth = window.speechSynthesis;
-      const utter = new SpeechSynthesisUtterance(reply);
-      synth.speak(utter);
-    }
-
-    function startListening() {
-      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      document.getElementById('status').innerText = "Listening...";
-
-      recognition.onresult = function(event) {
-        const transcript = event.results[0][0].transcript;
-        processSpeech(transcript);
-      };
-
-      recognition.onerror = function(event) {
-        document.getElementById('status').innerText = 'Error: ' + event.error;
-      };
-
-      recognition.start();
-    }
-  </script>
+    const data = await response.json();
+    statusDiv.textContent = data.reply || 'No response from AI.';
+  } catch (error) {
+    statusDiv.textContent = 'Error talking to AI.';
+    console.error(error);
+  }
+};
+</script>
 </body>
 </html>
